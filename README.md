@@ -7,7 +7,7 @@ Full-stack, modern demo app:
 - **Messaging:** Kafka via Redpanda (Docker)
 - **Frontend:** React + TypeScript (Vite)
 - **Server-state:** TanStack Query (React Query)
-- **Tooling:** ESLint (Airbnb) + Prettier
+- **Tooling:** ESLint + Prettier
 
 ## Architecture
 
