@@ -30,9 +30,37 @@ services:
       - --kafka-addr
       - PLAINTEXT://0.0.0.0:9092
       - --advertise-kafka-addr
-      - PLAINTEXT://localhost:9092
+      - PLAINTEXT://redpanda:9092
     ports:
       - "9092:9092"
+
+  backend:
+    build:
+      context: ./backend
+    container_name: hello-backend
+    depends_on:
+      - postgres
+      - redpanda
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hello_db
+      SPRING_DATASOURCE_USERNAME: hello
+      SPRING_DATASOURCE_PASSWORD: hello
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      # Optional: set server port explicitly
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: hello-frontend
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE: http://localhost:8080
+    ports:
+      - "5173:5173"
 
 volumes:
   pgdata:
