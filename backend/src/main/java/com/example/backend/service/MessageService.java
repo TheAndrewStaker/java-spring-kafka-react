@@ -1,9 +1,13 @@
 package com.example.backend.service;
 
 import com.example.backend.model.Message;
+import com.example.backend.observability.CorrelationIdFilter;
 import com.example.backend.repository.MessageRepository;
 import jakarta.transaction.Transactional;
+import org.slf4j.MDC;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,13 +24,32 @@ public class MessageService {
 
     @Transactional
     public Message create(String content, String idempotencyKey) {
+
         return messageRepository.findByIdempotencyKey(idempotencyKey)
                 .orElseGet(() -> {
-                    Message message = messageRepository.save(
+                    Message savedMessage = messageRepository.save(
                             new Message(content, idempotencyKey)
                     );
-                    kafka.send(TOPIC, message.getId().toString(), message.getContent());
-                    return message;
+
+                    publishEvent(savedMessage);
+
+                    return savedMessage;
                 });
+    }
+
+    private void publishEvent(Message message) {
+
+        String correlationId = MDC.get(CorrelationIdFilter.MDC_KEY);
+
+        var msgBuilder = MessageBuilder
+                .withPayload(message.getContent())
+                .setHeader(KafkaHeaders.TOPIC, TOPIC)
+                .setHeader(KafkaHeaders.KEY, message.getId().toString());
+
+        if (correlationId != null && !correlationId.isBlank()) {
+            msgBuilder.setHeader(CorrelationIdFilter.HEADER_NAME, correlationId);
+        }
+
+        kafka.send(msgBuilder.build());
     }
 }
